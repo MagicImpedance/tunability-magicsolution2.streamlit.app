@@ -1,29 +1,37 @@
 import numpy as np
 import pandas as pd
 import matplotlib
-matplotlib.use("Agg")   # Sécurité Streamlit Cloud
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import streamlit as st
 
 # ============================================================
-# CONFIG
+# CONFIG GÉNÉRALE
 # ============================================================
 st.set_page_config(layout="wide")
 st.title("Analyse d’accordabilité C(V)")
 
 TOL_FREQ_REL = 1e-3   # 0.1 % tolérance fréquence
 
+# Taille FIXE des figures (ne dépasse jamais la page)
+FIG_W = 8.0   # pouces
+FIG_H = 4.5
+
 # ============================================================
-# SIDEBAR – AFFICHAGE
+# SIDEBAR – ZOOM VISUEL
 # ============================================================
 st.sidebar.header("Affichage")
+
 zoom = st.sidebar.slider(
-    "Zoom des graphiques",
+    "Zoom visuel (lignes / marqueurs)",
     min_value=0.5,
     max_value=2.0,
     value=1.0,
     step=0.1
 )
+
+LINE_W = 2.0 * zoom
+MARKER_S = 6.0 * zoom
 
 # ============================================================
 # Upload fichiers
@@ -46,7 +54,6 @@ frequencies = []
 # ============================================================
 for file in uploaded_files:
 
-    # --- Lecture robuste fichiers Agilent ---
     try:
         df = pd.read_csv(
             file,
@@ -58,7 +65,6 @@ for file in uploaded_files:
         st.error(f"Erreur lecture {file.name} : {e}")
         st.stop()
 
-    # --- Normalisation colonnes ---
     if df.shape[1] < 4:
         st.error(f"{file.name} : fichier invalide (moins de 4 colonnes)")
         st.stop()
@@ -66,14 +72,13 @@ for file in uploaded_files:
     df = df.iloc[:, :4]
     df.columns = ["Freq_Hz", "DCB_V", "Cp_F", "Rp_Ohm"]
 
-    # --- Conversion explicite en float ---
     try:
         df = df.astype(float)
     except Exception:
         st.error(f"{file.name} : conversion numérique impossible")
         st.stop()
 
-    # --- Contrôle variation fréquence interne ---
+    # ---- Contrôle fréquence interne ----
     freq_vals = df["Freq_Hz"].values
     f_min = freq_vals.min()
     f_max = freq_vals.max()
@@ -81,7 +86,7 @@ for file in uploaded_files:
     if (f_max - f_min) / f_min > TOL_FREQ_REL:
         st.error(
             f"⚠️ Variation de fréquence détectée dans {file.name} "
-            f"({f_min:.3e} → {f_max:.3e} Hz) – condition anormale"
+            f"({f_min:.3e} → {f_max:.3e} Hz)"
         )
         st.stop()
 
@@ -104,24 +109,18 @@ else:
 # ============================================================
 all_tuning = []
 
-fig1, ax1 = plt.subplots(
-    figsize=(8 * zoom, 5 * zoom)
-)
+fig1, ax1 = plt.subplots(figsize=(FIG_W, FIG_H))
 
 for df, fname in all_curves:
 
     df = df.sort_values("DCB_V")
-
-    # Capacité en pF
     df["Cp_pF"] = df["Cp_F"] * 1e12
 
-    # Vérifier présence 0 V
     if 0 not in df["DCB_V"].values:
         st.error(f"{fname} : pas de point à 0 V")
         st.stop()
 
     C0 = df.loc[df["DCB_V"] == 0, "Cp_pF"].iloc[0]
-
     df["Tune_pct"] = (C0 - df["Cp_pF"]) / C0 * 100
 
     all_tuning.append(df[["DCB_V", "Tune_pct"]])
@@ -130,6 +129,8 @@ for df, fname in all_curves:
         df["DCB_V"],
         df["Tune_pct"],
         marker="o",
+        linewidth=LINE_W,
+        markersize=MARKER_S,
         label=fname
     )
 
@@ -154,15 +155,15 @@ for V in target_voltages:
     mean_tune_perV.append(np.mean(vals))
     std_tune_perV.append(np.std(vals))
 
-fig2, ax2 = plt.subplots(
-    figsize=(8 * zoom, 5 * zoom)
-)
+fig2, ax2 = plt.subplots(figsize=(FIG_W, FIG_H))
 
 ax2.errorbar(
     target_voltages,
     mean_tune_perV,
     yerr=std_tune_perV,
     marker="o",
+    linewidth=LINE_W,
+    markersize=MARKER_S,
     capsize=5
 )
 
@@ -178,7 +179,7 @@ tab1, tab2 = st.tabs(
 )
 
 with tab1:
-    st.pyplot(fig1)
+    st.pyplot(fig1, use_container_width=True)
 
 with tab2:
-    st.pyplot(fig2)
+    st.pyplot(fig2, use_container_width=True)
