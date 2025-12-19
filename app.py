@@ -14,6 +14,18 @@ st.title("Analyse d’accordabilité C(V)")
 TOL_FREQ_REL = 1e-3   # 0.1 % tolérance fréquence
 
 # ============================================================
+# SIDEBAR – AFFICHAGE
+# ============================================================
+st.sidebar.header("Affichage")
+zoom = st.sidebar.slider(
+    "Zoom des graphiques",
+    min_value=0.5,
+    max_value=2.0,
+    value=1.0,
+    step=0.1
+)
+
+# ============================================================
 # Upload fichiers
 # ============================================================
 uploaded_files = st.file_uploader(
@@ -92,7 +104,9 @@ else:
 # ============================================================
 all_tuning = []
 
-fig1, ax1 = plt.subplots(figsize=(8, 5))
+fig1, ax1 = plt.subplots(
+    figsize=(8 * zoom, 5 * zoom)
+)
 
 for df, fname in all_curves:
 
@@ -140,7 +154,10 @@ for V in target_voltages:
     mean_tune_perV.append(np.mean(vals))
     std_tune_perV.append(np.std(vals))
 
-fig2, ax2 = plt.subplots(figsize=(8, 5))
+fig2, ax2 = plt.subplots(
+    figsize=(8 * zoom, 5 * zoom)
+)
+
 ax2.errorbar(
     target_voltages,
     mean_tune_perV,
